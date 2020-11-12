@@ -50,7 +50,7 @@ function create_normalizer(U, K)
     lo = min.(lo, minimum(K, dims=2))
     hi = max.(hi, maximum(K, dims=2))
 
-    return x -> (x .- lo) ./ (hi .- lo)
+    return x -> (x .- lo) ./ (hi .- lo), y -> lo .+ (hi .- lo) .* y
 end
 
 function prepare_seq_data(U::Array{T}, span, normalizer) where {T}
@@ -84,7 +84,7 @@ function prepare(ℳ1, ℳ2; mix=false)
     @info "calculating U0: $(now())"
     U0 = simulate(Float32, ℳ1)
     K = voltage_clamp(Float32, ℳ1)
-    normalizer = create_normalizer(U0, K)
+    normalizer, _ = create_normalizer(U0, K)
 
     @info "calculating U2: $(now())"
     U2 = simulate(Float32, ℳ2)

@@ -23,7 +23,7 @@ mae2(ŷ, y, nt) = begin
     return mean(x[:,1:nt]), mean(x[:,nt+1:end])
 end
 
-function train_base_model(X, mask, obs; nh=30, epochs=3, λ::Float32=1f-4, ρ=0.75)
+function train_base_model(X, obs, mask; nh=30, epochs=3, λ::Float32=1f-4, ρ=0.75)
     obs, mask = cpu(obs), cpu(mask)
     nobs = length(obs)
     ns = size(X[1], 1)
@@ -89,7 +89,7 @@ function train_base_model(X, mask, obs; nh=30, epochs=3, λ::Float32=1f-4, ρ=0.
     return m1, m2
 end
 
-function retrain_model(m1, m2, X, mask, obs; epochs=5, λ::Float32=1f-5, η=1f0, ρ=0.75)
+function retrain_model(m1, m2, X, obs, mask; epochs=5, λ::Float32=1f-5, η=1f0, ρ=0.75)
     obs, mask = cpu(obs), cpu(mask)
     Ω = cumsum(mask)[obs]
     nobs = length(obs)
@@ -106,8 +106,11 @@ function retrain_model(m1, m2, X, mask, obs; epochs=5, λ::Float32=1f-5, η=1f0,
     Flux.reset!(m1)
     Flux.reset!(m2)
 
-    # m = gpu(deepcopy(m1))
-    m = gpu(Chain(m1[1:end-1]..., deepcopy(m1[end])))
+    m1 = gpu(m1)
+    m2 = gpu(m2)
+    m1′ = gpu(deepcopy(m1))
+    m2′ = gpu(deepcopy(m2))
+    # m = gpu(Chain(m1[1:end-1]..., deepcopy(m1[end])))
 
     fnorm(x) = sum(abs2, x) / length(x)
 
@@ -124,12 +127,13 @@ function retrain_model(m1, m2, X, mask, obs; epochs=5, λ::Float32=1f-5, η=1f0,
 
     opt = ADAM(0.0001)
 
-    p = params(m[end])
+    p = params(m1′[end])
 
     loss(x, y) = begin
-        h = m(x)
-        l1, l1v = mae2(h, m1(x), nt)
-        w = m2([x; h])
+        h = m1(x)
+        h′ = m1′(x)
+        l1, l1v = mae2(h, h′, nt)
+        w = m2′([x; h′])
         l2, l2v = mse2(w[Ω,:], y, nt)
         r = λ * sum(fnorm, p)
         l = η * l1 + l2 + r
@@ -141,16 +145,16 @@ function retrain_model(m1, m2, X, mask, obs; epochs=5, λ::Float32=1f-5, η=1f0,
 
     println()
     println()
-    return m
+    return m1′
 end
 
 function train(ℬ)
-    m1, m2 = train_base_model(ℬ.X0, ℬ.mask, ℬ.obs; epochs=3)
+    m1, m2 = train_base_model(ℬ.X0, ℬ.obs, ℬ.mask; epochs=3)
     return merge(ℬ, (m1=m1, m2=m2))
 end
 
 function retrain(ℬ, η)
-    mp = retrain_model(ℬ.m1, ℬ.m2, ℬ.X0, ℬ.mask, ℬ.obs; epochs=3, η=η)
-    mq = retrain_model(ℬ.m1, ℬ.m2, ℬ.X2, ℬ.mask, ℬ.obs; epochs=3, η=η)
+    mp = retrain_model(ℬ.m1, ℬ.m2, ℬ.X0, ℬ.obs, ℬ.mask; epochs=3, η=η)
+    mq = retrain_model(ℬ.m1, ℬ.m2, ℬ.X2, ℬ.obs, ℬ.mask; epochs=3, η=η)
     return (mp=mp, mq=mq, η=η)
 end
