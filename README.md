@@ -1,7 +1,7 @@
 # Gating Neural Networks (GNN)
 
-This repository is a collection of codes used in the paper, titled *Discovery of the Hidden State in Ionic Models Using a Domain-Specific
-Recurrent Neural Network*. 
+This repository is a collection of codes used in [Discovery of the Hidden State in Ionic Models Using a Domain-Specific
+Recurrent Neural Network](https://arxiv.org/abs/2011.07388). 
 
 ## Abstract
 
